@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
 """
-app.py — Local web dashboard for the Fault-Injection Cascade Analyzer.
-Wraps fault_injector.py: runs it as a subprocess against a binary you
-choose, reads back the JSON reports it writes, and shows them in a
-browser UI with a run history. Runs ONLY on your own machine.
-
-NOTE: output is captured via a log FILE, not pipes (capture_output=True).
-Piping fault_injector.py's output directly deadlocks against Frida's
-background threads — writing to a file sidesteps that entirely.
+app.py — Local web dashboard for the Fault-Injection Cascade Analyzer,
+with a Gemma-powered explanation and chat assistant for each run.
+Uses Ollama (local, offline, no API credits) to run Gemma.
 """
 
 import json
@@ -17,13 +12,81 @@ import sys
 import time
 import uuid
 
+import requests
 from flask import Flask, jsonify, render_template, request
 
 app = Flask(__name__)
 
 HISTORY = []  # in-memory run history, newest first
-
 FAULT_TYPES = ["bitflip", "register", "retaddr"]
+
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = "gemma3:4b"
+OLLAMA_TIMEOUT = 90  # CPU-only inference can be slow — give it room
+
+
+def explain_run_with_gemma(run_record):
+    results_summary = "\n".join(
+        f"- {r['fault_type']}: {r['severity']} ({r['reason']})"
+        for r in run_record["results"]
+    )
+    prompt = f"""You are a security analyst explaining a fault-injection test to someone non-technical.
+
+Target program: {run_record['target']}
+Function tested: {run_record['function']}
+Register corrupted: {run_record['register']}
+
+Results:
+{results_summary}
+
+In 3-4 short, plain-English sentences, explain what happened and why it matters. No jargon, no bullet points, just flowing sentences."""
+
+    try:
+        resp = requests.post(OLLAMA_URL, json={
+            "model": OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": False
+        }, timeout=OLLAMA_TIMEOUT)
+        resp.raise_for_status()
+        return resp.json().get("response", "").strip()
+    except Exception as e:
+        return f"(Explanation unavailable — is Ollama running? {e})"
+
+
+def chat_about_run(run_record, question, chat_history):
+    results_summary = "\n".join(
+        f"- {r['fault_type']}: {r['severity']} ({r['reason']})"
+        for r in run_record["results"]
+    )
+    history_text = "\n".join(
+        f"{'User' if m['role']=='user' else 'Assistant'}: {m['text']}"
+        for m in chat_history[-6:]
+    )
+    prompt = f"""You are a security analyst assistant. A fault-injection test was run with these results:
+
+Target: {run_record['target']}
+Function: {run_record['function']}
+Register: {run_record['register']}
+Results:
+{results_summary}
+
+Conversation so far:
+{history_text}
+
+User: {question}
+
+Answer in 2-3 plain sentences, based only on the data above."""
+
+    try:
+        resp = requests.post(OLLAMA_URL, json={
+            "model": OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": False
+        }, timeout=OLLAMA_TIMEOUT)
+        resp.raise_for_status()
+        return resp.json().get("response", "").strip()
+    except Exception as e:
+        return f"(Could not reach the local model: {e})"
 
 
 @app.route("/")
@@ -83,7 +146,6 @@ def api_run():
         full_log = f.read()
 
     if proc.returncode != 0 and not full_log.strip():
-        print(f"[dashboard] Non-zero exit with no output.", flush=True)
         return jsonify({
             "error": f"fault_injector.py exited with error (code {proc.returncode}) and produced no output."
         }), 500
@@ -118,16 +180,59 @@ def api_run():
         "register": register,
         "duration": duration,
         "results": results,
-        "raw_log": full_log[-4000:],  # keep it bounded
+        "raw_log": full_log[-4000:],
         "returncode": proc.returncode,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "chat_history": [],
     }
-    HISTORY.insert(0, run_record)
 
+    print("[dashboard] Asking Gemma for an explanation (this can take a while on CPU)...", flush=True)
+    run_record["explanation"] = explain_run_with_gemma(run_record)
+    print("[dashboard] Explanation ready.", flush=True)
+
+    HISTORY.insert(0, run_record)
     return jsonify(run_record)
+
+
+@app.route("/api/chat", methods=["POST"])
+def api_chat():
+    data = request.get_json(force=True)
+    run_id = data.get("run_id")
+    question = data.get("question", "").strip()
+
+    run_record = next((r for r in HISTORY if r["id"] == run_id), None)
+    if not run_record:
+        return jsonify({"error": "Run not found."}), 404
+    if not question:
+        return jsonify({"error": "Question is empty."}), 400
+
+    run_record.setdefault("chat_history", [])
+    run_record["chat_history"].append({"role": "user", "text": question})
+
+    print(f"[dashboard] Chat question: {question!r} (waiting on Gemma...)", flush=True)
+    answer = chat_about_run(run_record, question, run_record["chat_history"])
+    print("[dashboard] Chat answer ready.", flush=True)
+
+    run_record["chat_history"].append({"role": "assistant", "text": answer})
+
+    return jsonify({"answer": answer})
+
+
+def warm_up_model():
+    print("[dashboard] Warming up Gemma (first load can take a while on CPU)...", flush=True)
+    try:
+        requests.post(OLLAMA_URL, json={
+            "model": OLLAMA_MODEL,
+            "prompt": "Say OK.",
+            "stream": False
+        }, timeout=120)
+        print("[dashboard] Gemma is warmed up and ready.", flush=True)
+    except Exception as e:
+        print(f"[dashboard] Warm-up failed (will retry on first real request): {e}", flush=True)
 
 
 if __name__ == "__main__":
     print("Dashboard running at: http://127.0.0.1:5000")
     print("Press Ctrl+C to stop.")
+    warm_up_model()
     app.run(host="127.0.0.1", port=5000, debug=True, use_reloader=False)

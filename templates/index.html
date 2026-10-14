@@ -146,15 +146,44 @@
     font-size: 12.5px; color: var(--muted); line-height: 1.6;
   }
   .safety-note b { color: var(--high); }
+
+  .explanation-box {
+    margin-top: 20px; padding: 16px 18px; border-radius: 12px;
+    background: rgba(124,141,255,0.07); border: 1px solid var(--border-hi);
+    font-size: 13.5px; line-height: 1.6; color: var(--text);
+  }
+  .explanation-box .label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 8px; display: block;
+  }
+
+  .chat-section { margin-top: 20px; }
+  .chat-log { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; max-height: 280px; overflow-y: auto; padding-right: 4px; }
+  .chat-bubble { padding: 10px 14px; border-radius: 12px; max-width: 80%; font-size: 13px; line-height: 1.5; }
+  .chat-bubble.user { align-self: flex-end; background: rgba(124,141,255,0.18); border: 1px solid rgba(124,141,255,0.3); }
+  .chat-bubble.assistant { align-self: flex-start; background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
+  .chat-input-row { display: flex; gap: 10px; }
+  .chat-input-row input {
+    flex: 1; padding: 11px 13px; border-radius: 10px;
+    border: 1px solid var(--border); background: rgba(0,0,0,0.3); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  }
+  .chat-input-row input:focus { outline: none; border-color: var(--accent); }
+  .chat-input-row button {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white; border: none; padding: 11px 22px; border-radius: 10px;
+    font-weight: 600; cursor: pointer; font-family: 'Space Grotesk', sans-serif; font-size: 13.5px;
+  }
+  .chat-input-row button:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <header>
-    <div class="eyebrow"><span class="dot"></span> Frida-powered · local only</div>
+    <div class="eyebrow"><span class="dot"></span> Frida + Gemma 4 · local only</div>
     <h1>Binary-Level Fault-Injection<br>Cascade Analyzer</h1>
-    <p class="sub">Spawns a binary, injects a bit-flip, a register corruption, or a return-address smash — then watches whether the damage crashes the process or leaks across the syscall boundary, and ranks the blast radius.</p>
+    <p class="sub">Spawns a binary, injects a bit-flip, a register corruption, or a return-address smash — then watches whether the damage crashes the process or leaks across the syscall boundary, ranks the blast radius, and explains it with a local AI assistant.</p>
   </header>
 
   <div class="glass panel">
@@ -191,19 +220,33 @@
     </div>
     <div class="result-cards" id="currentResultCards"></div>
     <div class="chart-box"><canvas id="resultChart"></canvas></div>
+
+    <div class="explanation-box" id="explanationBox" style="display:none;">
+      <span class="label">🤖 Gemma explains</span>
+      <span id="explanationText"></span>
+    </div>
+
+    <div class="chat-section">
+      <div class="chat-log" id="chatLog"></div>
+      <div class="chat-input-row">
+        <input id="chatInput" placeholder="Ask about this result, e.g. why did this crash?" onkeydown="if(event.key==='Enter') askChat()">
+        <button id="chatBtn" onclick="askChat()">Ask</button>
+      </div>
+    </div>
   </div>
 
   <h2 class="section-title">Run history</h2>
   <div id="historyList"></div>
 
   <div class="safety-note">
-    <b>Scope note —</b> this tool only spawns and attaches to processes it starts itself. It never attaches to an unrelated running process on this machine, and nothing here is reachable from outside localhost.
+    <b>Scope note —</b> this tool only spawns and attaches to processes it starts itself. It never attaches to an unrelated running process on this machine, and nothing here is reachable from outside localhost. The chat assistant runs fully offline via a local Gemma model — no data leaves this machine.
   </div>
 
 </div>
 
 <script>
 let chart = null;
+let currentRun = null;
 const sevVal = { CRITICAL: 3, HIGH: 2, LOW: 1, ERROR: 0, UNKNOWN: 0 };
 const sevColor = { CRITICAL: '#ff4d5e', HIGH: '#ffa93d', LOW: '#37e2a0', ERROR: '#5b6080', UNKNOWN: '#5b6080' };
 
@@ -248,6 +291,7 @@ async function runTest() {
 }
 
 function showResult(run) {
+  currentRun = run;
   document.getElementById('currentResultPanel').style.display = 'block';
   document.getElementById('currentResultTitle').textContent = run.label || run.target;
   document.getElementById('currentResultDur').textContent = run.duration + 's total';
@@ -266,6 +310,16 @@ function showResult(run) {
   });
 
   drawChart(run.results);
+
+  const expBox = document.getElementById('explanationBox');
+  if (run.explanation) {
+    expBox.style.display = 'block';
+    document.getElementById('explanationText').textContent = run.explanation;
+  } else {
+    expBox.style.display = 'none';
+  }
+
+  renderChatLog(run.chat_history || []);
   document.getElementById('currentResultPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -290,6 +344,49 @@ function drawChart(results) {
       plugins: { legend: { display: false } }
     }
   });
+}
+
+function renderChatLog(history) {
+  const log = document.getElementById('chatLog');
+  log.innerHTML = '';
+  history.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'chat-bubble ' + (m.role === 'user' ? 'user' : 'assistant');
+    div.textContent = m.text;
+    log.appendChild(div);
+  });
+  log.scrollTop = log.scrollHeight;
+}
+
+async function askChat() {
+  const input = document.getElementById('chatInput');
+  const btn = document.getElementById('chatBtn');
+  const question = input.value.trim();
+  if (!question || !currentRun) return;
+  input.value = '';
+  input.disabled = true;
+  btn.disabled = true;
+
+  currentRun.chat_history = currentRun.chat_history || [];
+  currentRun.chat_history.push({ role: 'user', text: question });
+  renderChatLog(currentRun.chat_history);
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ run_id: currentRun.id, question })
+    });
+    const data = await res.json();
+    currentRun.chat_history.push({ role: 'assistant', text: data.answer || data.error || 'No response.' });
+    renderChatLog(currentRun.chat_history);
+  } catch (e) {
+    currentRun.chat_history.push({ role: 'assistant', text: 'Could not reach the server.' });
+    renderChatLog(currentRun.chat_history);
+  }
+  input.disabled = false;
+  btn.disabled = false;
+  input.focus();
 }
 
 async function loadHistory() {
