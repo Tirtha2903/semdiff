@@ -10,20 +10,86 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import uuid
 
 import requests
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_from_directory
 
 app = Flask(__name__)
 
-HISTORY = []  # in-memory run history, newest first
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_TIMEOUT = 120  # generous — first token on CPU can be slow
+
+
+def get_installed_model():
+    """Detect available Gemma model from local Ollama instance, fallback to gemma4:latest."""
+    try:
+        r = requests.get("http://localhost:11434/api/tags", timeout=3)
+        if r.status_code == 200:
+            names = [m.get("name") for m in r.json().get("models", [])]
+            for n in names:
+                if n.startswith("gemma4"):
+                    return n
+            for n in names:
+                if "gemma" in n.lower():
+                    return n
+    except Exception:
+        pass
+    return "gemma4:latest"
+
+
+OLLAMA_MODEL = get_installed_model()
 FAULT_TYPES = ["bitflip", "register", "retaddr"]
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "gemma3:4b"
-OLLAMA_TIMEOUT = 90  # CPU-only inference can be slow — give it room
+
+def make_sample_run():
+    """Returns a pre-recorded test run so the dashboard is immediately interactive."""
+    return {
+        "id": "sample-sleep",
+        "label": "Demo: /bin/sleep (coreutils 9.4)",
+        "target": "/bin/sleep",
+        "args": "30",
+        "function": "nanosleep",
+        "register": "rax",
+        "duration": 6.84,
+        "results": [
+            {
+                "fault_type": "bitflip",
+                "severity": "CRITICAL",
+                "reason": "caused an immediate process crash (SIGSEGV)",
+            },
+            {
+                "fault_type": "register",
+                "severity": "HIGH",
+                "reason": "process kept running and still crossed the write/send/open boundary afterward",
+            },
+            {
+                "fault_type": "retaddr",
+                "severity": "LOW",
+                "reason": "no observable crash or boundary activity in the 2s window after injection",
+            },
+        ],
+        "raw_log": (
+            "[fault_injector] target: /bin/sleep 30\n"
+            "[fault_injector] hooked nanosleep\n"
+            "[fault-bitflip] injected bitflip into rax at offset 45\n"
+            "[process] terminated with SIGSEGV (blast radius: CRITICAL)\n"
+        ),
+        "returncode": 0,
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "chat_history": [],
+        "explanation": (
+            "During this fault test, flipping a bit inside nanosleep immediately caused a crash due to an invalid memory reference. "
+            "Corrupting the register allowed execution to continue and leak across system call boundaries, creating a high security risk. "
+            "Smashing the return address did not cause an observable cascade within the observation window."
+        ),
+        "fix_prediction": "",
+    }
+
+
+HISTORY = [make_sample_run()]  # in-memory run history, seeded with demo run
 
 
 def explain_run_with_gemma(run_record):
@@ -143,9 +209,48 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/gemma-test")
+def gemma_test():
+    return render_template("gemma_test.html")
+
+
+@app.route("/api/gemma-ping", methods=["POST"])
+def api_gemma_ping():
+    data = request.get_json(force=True)
+    prompt = (data.get("prompt") or "").strip()
+    if not prompt:
+        prompt = "Say exactly: Gemma is alive and running on this machine."
+    try:
+        resp = requests.post(
+            OLLAMA_URL,
+            json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+            timeout=OLLAMA_TIMEOUT,
+        )
+        resp.raise_for_status()
+        answer = resp.json().get("response", "").strip()
+        return jsonify({"ok": True, "model": OLLAMA_MODEL, "response": answer})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @app.route("/api/history")
 def api_history():
     return jsonify(HISTORY)
+
+
+@app.route("/api/sample-run", methods=["POST"])
+def api_sample_run():
+    sample = make_sample_run()
+    if not any(r["id"] == sample["id"] for r in HISTORY):
+        HISTORY.insert(0, sample)
+    return jsonify(sample)
+
+
+@app.route("/semdiff")
+@app.route("/app.html")
+def semdiff_page():
+    return send_from_directory(".", "app.html")
+
 
 
 @app.route("/api/run", methods=["POST"])
@@ -299,6 +404,8 @@ def warm_up_model():
 
 if __name__ == "__main__":
     print("Dashboard running at: http://127.0.0.1:5000")
+    print("Gemma test page:      http://127.0.0.1:5000/gemma-test")
     print("Press Ctrl+C to stop.")
-    warm_up_model()
-    app.run(host="127.0.0.1", port=5000, debug=True, use_reloader=False)
+    threading.Thread(target=warm_up_model, daemon=True).start()
+    app.run(host="127.0.0.1", port=5000, debug=False, threaded=True, use_reloader=False)
+

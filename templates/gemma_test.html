@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemma · Live Test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg0:#06070c;--bg1:#0c0e18;--panel:rgba(255,255,255,0.03);
+    --border:rgba(255,255,255,0.08);--border-hi:rgba(130,160,255,0.35);
+    --text:#eef0f8;--muted:#8389a3;--muted2:#5b6080;
+    --accent:#7c8dff;--accent2:#c86bff;--ok:#37e2a0;--err:#ff4d5e;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;color:var(--text);font-family:'Space Grotesk',sans-serif;
+    background:radial-gradient(900px 500px at 10% -10%,rgba(124,141,255,.18),transparent 60%),
+      radial-gradient(900px 600px at 110% 10%,rgba(200,107,255,.14),transparent 60%),
+      linear-gradient(180deg,var(--bg0),var(--bg1));
+    background-attachment:fixed;display:flex;flex-direction:column;align-items:center;padding:56px 24px 80px}
+  .card{width:100%;max-width:700px;background:var(--panel);border:1px solid var(--border);
+    border-radius:22px;backdrop-filter:blur(24px);
+    box-shadow:0 28px 72px -24px rgba(0,0,0,.7);padding:36px 36px 32px}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.5px;
+    color:var(--accent);text-transform:uppercase;padding:5px 14px;border-radius:20px;
+    border:1px solid var(--border-hi);background:rgba(124,141,255,.08);margin-bottom:18px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  h1{font-size:30px;font-weight:700;line-height:1.2;margin-bottom:8px;
+    background:linear-gradient(90deg,#fff,#c9ceff);-webkit-background-clip:text;
+    background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{color:var(--muted);font-size:14px;line-height:1.55;margin-bottom:32px}
+  .status-pill{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;
+    border-radius:20px;font-size:12.5px;font-weight:600;
+    font-family:'JetBrains Mono',monospace;margin-bottom:28px;
+    border:1px solid var(--border);color:var(--muted);transition:all .35s}
+  .status-pill.ok{color:var(--ok);border-color:rgba(55,226,160,.4);background:rgba(55,226,160,.07)}
+  .status-pill.err{color:var(--err);border-color:rgba(255,77,94,.4);background:rgba(255,77,94,.07)}
+  .status-pill .pico{width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0}
+  label.field-label{display:block;font-family:'JetBrains Mono',monospace;font-size:10.5px;
+    letter-spacing:.9px;text-transform:uppercase;color:var(--muted2);margin-bottom:8px}
+  textarea#prompt{width:100%;min-height:90px;padding:13px 15px;resize:vertical;
+    border-radius:12px;border:1px solid var(--border);background:rgba(0,0,0,.32);color:var(--text);
+    font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:1.55;
+    transition:border-color .2s,box-shadow .2s}
+  textarea#prompt:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,141,255,.15)}
+  textarea#prompt::placeholder{color:var(--muted2)}
+  .btn-row{display:flex;gap:10px;margin-top:14px}
+  button.primary{flex:1;position:relative;overflow:hidden;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#fff;border:none;padding:13px 0;border-radius:11px;
+    font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14.5px;cursor:pointer;
+    box-shadow:0 8px 24px -8px rgba(124,141,255,.55);transition:transform .15s,box-shadow .15s}
+  button.primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 30px -6px rgba(124,141,255,.7)}
+  button.primary:disabled{opacity:.5;cursor:not-allowed}
+  button.secondary{padding:13px 20px;border-radius:11px;border:1px solid var(--border);
+    background:rgba(255,255,255,.04);color:var(--muted);
+    font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;cursor:pointer;
+    transition:border-color .2s,color .2s}
+  button.secondary:hover{border-color:var(--border-hi);color:var(--text)}
+  button.secondary:disabled{opacity:.4;cursor:not-allowed}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spin{display:inline-block;width:13px;height:13px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.25);border-top-color:#fff;
+    animation:spin .7s linear infinite;vertical-align:-3px;margin-right:6px}
+  .response-wrap{margin-top:28px}
+  .resp-label{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:1px;
+    text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:7px;margin-bottom:10px}
+  #responseBox{padding:18px 20px;border-radius:14px;background:rgba(124,141,255,.06);
+    border:1px solid var(--border-hi);font-size:14px;line-height:1.7;color:var(--text);
+    white-space:pre-wrap;word-break:break-word;min-height:60px;animation:fadeIn .4s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .meta-row{display:flex;justify-content:space-between;align-items:center;margin-top:10px;
+    font-size:11px;color:var(--muted2);font-family:'JetBrains Mono',monospace}
+  .back-link{margin-top:28px;text-align:center;font-size:13px;color:var(--muted)}
+  .back-link a{color:var(--accent);text-decoration:none}
+  .back-link a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="eyebrow"><span class="dot"></span> Gemma 4 &middot; Local via Ollama</div>
+  <h1>Gemma Live Test</h1>
+  <p class="sub">Proves that <strong>gemma4:latest</strong> is running locally on port 11434. Type any prompt and hit <em>Ask Gemma</em> &mdash; everything stays on your machine.</p>
+
+  <div id="statusPill" class="status-pill">
+    <span class="pico"></span> <span id="statusText">Checking Gemma&hellip;</span>
+  </div>
+
+  <label class="field-label" for="prompt">Your prompt</label>
+  <textarea id="prompt" placeholder="Ask Gemma anything&hellip;">Say exactly: Gemma is alive and running on this machine.</textarea>
+
+  <div class="btn-row">
+    <button class="primary" id="askBtn" onclick="askGemma()">Ask Gemma</button>
+    <button class="secondary" id="clearBtn" onclick="clearAll()">Clear</button>
+  </div>
+
+  <div class="response-wrap" id="responseWrap" style="display:none">
+    <div class="resp-label">&#x2699; Gemma&apos;s response</div>
+    <div id="responseBox"></div>
+    <div class="meta-row">
+      <span id="modelLabel"></span>
+      <span id="timingLabel"></span>
+    </div>
+  </div>
+</div>
+<div class="back-link">&larr; <a href="/">Back to Fault-Injection Dashboard</a></div>
+
+<script>
+const pill=document.getElementById('statusPill'),pillTx=document.getElementById('statusText');
+const btn=document.getElementById('askBtn'),clearB=document.getElementById('clearBtn');
+const wrap=document.getElementById('responseWrap'),box=document.getElementById('responseBox');
+const modelL=document.getElementById('modelLabel'),timingL=document.getElementById('timingLabel');
+
+function setStatus(state,text){pill.className='status-pill '+state;pillTx.textContent=text}
+
+async function askGemma(){
+  const prompt=document.getElementById('prompt').value.trim();
+  if(!prompt)return;
+  btn.disabled=true;clearB.disabled=true;
+  btn.innerHTML='<span class="spin"></span>Waiting for Gemma\u2026';
+  wrap.style.display='none';setStatus('','Sending prompt\u2026');
+  const t0=Date.now();
+  try{
+    const res=await fetch('/api/gemma-ping',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})});
+    const data=await res.json();
+    const elapsed=((Date.now()-t0)/1000).toFixed(1);
+    if(data.ok){
+      setStatus('ok','\u2713 Gemma responded in '+elapsed+'s');
+      box.textContent=data.response;
+      modelL.textContent='model: '+data.model;timingL.textContent=elapsed+'s';
+    }else{
+      setStatus('err','\u2717 '+( data.error||'unknown error'));
+      box.textContent=data.error||'No detail.';
+      modelL.textContent='';timingL.textContent=elapsed+'s';
+    }
+    wrap.style.display='block';
+  }catch(e){
+    setStatus('err','\u2717 Network error: '+e.message);
+    box.textContent='Could not reach Flask. Is app.py running on port 5000?';
+    wrap.style.display='block';
+  }finally{btn.disabled=false;clearB.disabled=false;btn.textContent='Ask Gemma'}
+}
+
+function clearAll(){document.getElementById('prompt').value='';wrap.style.display='none';setStatus('','Ready')}
+
+// Auto-probe on load
+(async()=>{
+  setStatus('','Pinging Gemma\u2026');
+  try{
+    const res=await fetch('/api/gemma-ping',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt:'Reply with just the word: READY'})});
+    const d=await res.json();
+    d.ok?setStatus('ok','\u2713 Gemma online \u00b7 '+d.model)
+        :setStatus('err','\u2717 Ollama error \u2014 '+(d.error||'see console'));
+  }catch(e){setStatus('err','\u2717 Flask unreachable \u2014 restart app.py')}
+})();
+</script>
+</body>
+</html>

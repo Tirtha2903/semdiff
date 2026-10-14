@@ -223,7 +223,18 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow"><span class="dot"></span> Frida + Gemma 4 · local only</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      <div class="eyebrow" style="margin-bottom:0"><span class="dot"></span> Frida + Gemma 4 · local only</div>
+      <a href="/gemma-test" style="display:inline-flex;align-items:center;gap:6px;
+        font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.2px;
+        color:#37e2a0;text-transform:uppercase;padding:5px 13px;border-radius:20px;
+        border:1px solid rgba(55,226,160,0.4);background:rgba(55,226,160,0.07);
+        text-decoration:none;transition:background .2s;"
+        onmouseover="this.style.background='rgba(55,226,160,0.14)'"
+        onmouseout="this.style.background='rgba(55,226,160,0.07)'">
+        ⚡ Test Gemma
+      </a>
+    </div>
     <h1>Binary-Level Fault-Injection<br>Cascade Analyzer</h1>
     <p class="sub">Spawns a binary, injects a bit-flip, a register corruption, or a return-address smash — then watches whether the damage crashes the process or leaks across the syscall boundary, ranks the blast radius, and explains it with a local AI assistant.</p>
   </header>
@@ -250,8 +261,10 @@
         <label>Label (optional)</label>
         <input id="label" placeholder="sleep test">
       </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <button class="run" id="runBtn" onclick="runTest()">Run fault sweep</button>
+      <button class="run" id="demoBtn" style="background: rgba(255,255,255,0.06); border: 1px solid var(--border-hi); box-shadow: none;" onclick="loadSampleRun()">Load Sample Demo</button>
     </div>
-    <button class="run" id="runBtn" onclick="runTest()">Run fault sweep</button>
     <div id="status" class="status-line"></div>
   </div>
 
@@ -498,7 +511,7 @@ async function loadHistory() {
   const list = document.getElementById('historyList');
   list.innerHTML = '';
   if (items.length === 0) {
-    list.innerHTML = '<div class="glass panel empty">No runs yet — try one above.</div>';
+    list.innerHTML = '<div class="glass panel empty">No runs yet — try one above or click "Load Sample Demo".</div>';
     return;
   }
   items.forEach(run => {
@@ -515,6 +528,26 @@ async function loadHistory() {
     div.onclick = () => showResult(run);
     list.appendChild(div);
   });
+  if (!currentRun && items.length > 0) {
+    showResult(items[0]);
+  }
+}
+
+async function loadSampleRun() {
+  const btn = document.getElementById('demoBtn');
+  btn.disabled = true;
+  btn.textContent = 'Loading demo...';
+  try {
+    const res = await fetch('/api/sample-run', { method: 'POST' });
+    const sample = await res.json();
+    showResult(sample);
+    loadHistory();
+  } catch (e) {
+    alert('Failed to load sample demo: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Load Sample Demo';
+  }
 }
 
 // Configure marked to avoid bare HTML injection from model output
