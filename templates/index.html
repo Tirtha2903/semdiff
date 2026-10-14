@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>Fault-Injection Cascade Analyzer</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
@@ -79,10 +80,10 @@
   button.run:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 28px -6px rgba(124,141,255,0.75); }
   button.run:active:not(:disabled) { transform: translateY(0); }
   button.run:disabled { opacity: 0.55; cursor: not-allowed; }
-  button.run .spin {
-    display: inline-block; width: 13px; height: 13px; border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.4); border-top-color: white;
-    animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: -2px;
+  button.run .spin, .spin {
+    display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3); border-top-color: var(--accent);
+    animation: spin 0.7s linear infinite; margin-right: 7px; vertical-align: -2px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -157,6 +158,47 @@
     text-transform: uppercase; color: var(--accent); margin-bottom: 8px; display: block;
   }
 
+  .remediation-box {
+    margin-top: 20px; padding: 20px; border-radius: 14px;
+    background: rgba(12, 14, 28, 0.7); border: 1px solid var(--border-hi);
+    font-size: 13.5px; line-height: 1.6; color: var(--text);
+  }
+  .remediation-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;
+  }
+  .remediation-header h3 {
+    margin: 0; font-size: 13.5px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--accent); display: flex; align-items: center; gap: 8px;
+  }
+  .remediation-btn {
+    background: linear-gradient(135deg, #7c8dff, #c86bff);
+    color: white; border: none; padding: 7px 16px; border-radius: 8px;
+    font-weight: 600; cursor: pointer; font-size: 12px; font-family: 'Space Grotesk', sans-serif;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+  .remediation-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .remediation-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .remediation-body {
+    border-top: 1px solid var(--border); padding-top: 14px;
+  }
+  .remediation-body pre {
+    background: #040509; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
+    padding: 12px 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  }
+  .remediation-body code {
+    font-family: 'JetBrains Mono', monospace; color: #b8c7ff; background: rgba(124,141,255,0.1);
+    padding: 2px 5px; border-radius: 4px; font-size: 12px;
+  }
+  .remediation-body pre code {
+    background: transparent; padding: 0; color: #eef0f8;
+  }
+  .remediation-body h3, .remediation-body h4 {
+    margin: 16px 0 8px; color: #fff; font-size: 14px;
+  }
+  .remediation-body ul, .remediation-body ol {
+    padding-left: 20px; margin: 8px 0;
+  }
+
   .chat-section { margin-top: 20px; }
   .chat-log { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; max-height: 280px; overflow-y: auto; padding-right: 4px; }
   .chat-bubble { padding: 10px 14px; border-radius: 12px; max-width: 80%; font-size: 13px; line-height: 1.5; }
@@ -224,6 +266,17 @@
     <div class="explanation-box" id="explanationBox" style="display:none;">
       <span class="label">🤖 Gemma explains</span>
       <span id="explanationText"></span>
+    </div>
+
+    <div class="remediation-box" id="remediationBox" style="display:none;">
+      <div class="remediation-header">
+        <h3><span>⚡</span> Gemma Autonomous Hardening & Fix Predictor</h3>
+        <button id="btnPredictFix" class="remediation-btn" onclick="generateFix()">Predict Hardening Fix</button>
+      </div>
+      <div id="fixLoadingSpinner" style="display:none; color: var(--muted); font-size: 12.5px; padding: 10px 0; align-items: center; gap: 8px;">
+        <span class="spin" style="border-top-color: #7c8dff; flex-shrink: 0;"></span> Gemma is analyzing fault cascade and predicting code-level hardening…
+      </div>
+      <div id="fixContent" class="remediation-body" style="display:none;"></div>
     </div>
 
     <div class="chat-section">
@@ -319,6 +372,20 @@ function showResult(run) {
     expBox.style.display = 'none';
   }
 
+  const remBox = document.getElementById('remediationBox');
+  const fixContent = document.getElementById('fixContent');
+  const btnFix = document.getElementById('btnPredictFix');
+  remBox.style.display = 'block';
+  if (run.fix_prediction) {
+    fixContent.style.display = 'block';
+    fixContent.innerHTML = window.marked ? marked.parse(run.fix_prediction) : run.fix_prediction;
+    btnFix.textContent = 'Regenerate Fix';
+  } else {
+    fixContent.style.display = 'none';
+    fixContent.innerHTML = '';
+    btnFix.textContent = 'Predict Hardening Fix';
+  }
+
   renderChatLog(run.chat_history || []);
   document.getElementById('currentResultPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -389,6 +456,42 @@ async function askChat() {
   input.focus();
 }
 
+async function generateFix() {
+  if (!currentRun) return;
+  const btn = document.getElementById('btnPredictFix');
+  const spinner = document.getElementById('fixLoadingSpinner');
+  const content = document.getElementById('fixContent');
+
+  btn.disabled = true;
+  spinner.style.display = 'flex';
+  content.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/predict_fix', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ run_id: currentRun.id })
+    });
+    const data = await res.json();
+    if (data.error) {
+      content.innerHTML = `<span style="color: var(--critical);">Error: ${data.error}</span>`;
+      content.style.display = 'block';
+      return;
+    }
+    currentRun.fix_prediction = data.fix_prediction;
+    const raw = data.fix_prediction || 'No prediction generated.';
+    content.innerHTML = (window.marked && window.marked.parse) ? marked.parse(raw) : raw.replace(/\n/g, '<br>');
+    content.style.display = 'block';
+    btn.textContent = 'Regenerate Fix';
+  } catch (err) {
+    content.innerHTML = '<span style="color: var(--critical);">Request failed — is the Flask server running?</span>';
+    content.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
+
 async function loadHistory() {
   const res = await fetch('/api/history');
   const items = await res.json();
@@ -412,6 +515,11 @@ async function loadHistory() {
     div.onclick = () => showResult(run);
     list.appendChild(div);
   });
+}
+
+// Configure marked to avoid bare HTML injection from model output
+if (window.marked) {
+  marked.setOptions({ breaks: true, gfm: true });
 }
 
 loadHistory();

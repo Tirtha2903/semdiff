@@ -53,6 +53,54 @@ In 3-4 short, plain-English sentences, explain what happened and why it matters.
         return f"(Explanation unavailable — is Ollama running? {e})"
 
 
+def predict_fix_with_gemma(run_record):
+    results_summary = "\n".join(
+        f"- {r['fault_type']}: {r['severity']} ({r['reason']})"
+        for r in run_record["results"]
+    )
+    log_snippet = run_record.get("raw_log", "")[-1000:]
+    prompt = f"""You are a Principal Systems Software Engineer and Compiler Security Expert.
+An automated binary fault-injection test was executed on target binary: '{run_record['target']}'.
+
+FAULT INJECTION TELEMETRY:
+- Target Binary: {run_record['target']}
+- Function / Hook: {run_record['function']}
+- Target Register/Offset: {run_record['register']}
+- Results:
+{results_summary}
+
+Log / Crash Snippet:
+{log_snippet}
+
+TASK:
+Provide a rigorous diagnosis and remediation plan formatted strictly in Markdown with these 3 sections:
+
+### 1. Root Cause Mechanism
+Explain technically why corrupting {run_record['register']} or injecting this fault led to this cascade (e.g., register operand invalidation, ABI calling convention violation, stack frame smash, unhandled SIGSEGV/panic leaking into write/send syscalls).
+
+### 2. Software Hardening & Defensive Code Fix
+Show the exact defensive programming pattern in C/C++ (or Rust) to make this function resilient against this corruption (e.g., pointer validation, canary checks, double-computation sanity check, or bounding input before syscalls). Provide a concise code snippet before and after.
+
+### 3. Compiler & System Level Mitigations
+List 2-3 specific compiler flags or OS mitigations (e.g., `-fstack-protector-strong`, `-D_FORTIFY_SOURCE=2`, `-fcf-protection`, Shadow Call Stack) that prevent or contain this fault.
+
+Be direct, technical, and actionable."""
+
+    try:
+        resp = requests.post(OLLAMA_URL, json={
+            "model": OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.2
+            }
+        }, timeout=OLLAMA_TIMEOUT)
+        resp.raise_for_status()
+        return resp.json().get("response", "").strip()
+    except Exception as e:
+        return f"### Remediation Prediction Unavailable\nCould not reach local Gemma model: {e}"
+
+
 def chat_about_run(run_record, question, chat_history):
     results_summary = "\n".join(
         f"- {r['fault_type']}: {r['severity']} ({r['reason']})"
@@ -216,6 +264,22 @@ def api_chat():
     run_record["chat_history"].append({"role": "assistant", "text": answer})
 
     return jsonify({"answer": answer})
+
+
+@app.route("/api/predict_fix", methods=["POST"])
+def api_predict_fix():
+    data = request.get_json(force=True)
+    run_id = data.get("run_id")
+    run_record = next((r for r in HISTORY if r["id"] == run_id), None)
+    if not run_record:
+        return jsonify({"error": "Run not found."}), 404
+
+    if "fix_prediction" not in run_record or not run_record["fix_prediction"]:
+        print(f"[dashboard] Asking Gemma for fix prediction on run {run_id}...", flush=True)
+        run_record["fix_prediction"] = predict_fix_with_gemma(run_record)
+        print("[dashboard] Fix prediction ready.", flush=True)
+
+    return jsonify({"fix_prediction": run_record["fix_prediction"]})
 
 
 def warm_up_model():
