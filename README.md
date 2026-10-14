@@ -1,7 +1,7 @@
 # SemDiff
 
 Compare two builds of a program and see only what changed in **behavior**, not bytes.
-The engine proves and locates changes. Gemma 4, running locally through Ollama, investigates and explains them.
+The engine proves and locates changes. Gemma 4, running locally through Ollama, investigates and explains them fully.
 
 ## Run (Ubuntu)
     cd semdiff
