@@ -291,7 +291,7 @@ def warm_up_model():
             "model": OLLAMA_MODEL,
             "prompt": "Say OK.",
             "stream": False
-        }, timeout=120)
+        }, timeout=(3.0, 120))
         print("[dashboard] Gemma is warmed up and ready.", flush=True)
     except Exception as e:
         print(f"[dashboard] Warm-up failed (will retry on first real request): {e}", flush=True)
