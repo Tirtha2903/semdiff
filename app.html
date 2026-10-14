@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SemDiff - Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://db.onlinewebfonts.com/c/8cb707a9b8a73f8a7403336b861c3074?family=BubbledotICG-FinePos" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="aur"></div><canvas id="bgc"></canvas>
+<header class="top" id="top">
+  <a class="brand" href="index.html"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#0b1124" stroke-width="2.2" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6M7.5 10h5"/></svg></span>SemDiff</a>
+  <nav class="links" id="links"><a href="index.html" data-p="index">Home</a><a href="app.html" data-p="app">Demo</a><a href="bench.html" data-p="bench">Benchmark</a><a href="index.html#how">How it works</a><a href="index.html#gemma">Gemma 4</a></nav>
+  <a class="go" href="app.html">Open demo</a>
+  <button class="burger" id="burger" aria-label="Menu" aria-expanded="false"><i></i><i></i></button>
+</header>
+<main class="wrap">
+  <h1>Semantic diff</h1>
+  <p class="mut">Paste two builds of the same program as assembly, or load text files. Function names are ignored, so functions are matched by behavior.</p>
+  <details class="cbox" id="cbox" open>
+    <summary><b>Compile real C code</b> <span class="mut">uses the gcc on your machine through server.py</span></summary>
+    <div class="row">
+      <div><label for="c1"><b>Version 1 (C)</b></label><textarea id="c1" spellcheck="false"></textarea><label class="mut">Optimization <select id="o1" class="btn g"><option value="0">-O0</option><option value="1">-O1</option><option value="2">-O2</option><option value="3">-O3</option></select></label></div>
+      <div><label for="c2"><b>Version 2 (C)</b></label><textarea id="c2" spellcheck="false"></textarea><label class="mut">Optimization <select id="o2" class="btn g"><option value="0">-O0</option><option value="1">-O1</option><option value="2" selected>-O2</option><option value="3">-O3</option></select></label></div>
+    </div>
+    <div class="tools"><button class="btn" id="cc">Compile and diff</button><span class="mut" id="cs">Start the server first: python3 server.py</span></div>
+  </details>
+  <p class="mut" style="margin-top:18px">Or paste assembly directly. Function names are ignored, so functions are matched by behavior.</p>
+  <div class="row">
+    <div><label for="a"><b>Build A (old)</b></label><textarea id="a" spellcheck="false"></textarea></div>
+    <div><label for="b"><b>Build B (new)</b></label><textarea id="b" spellcheck="false"></textarea></div>
+  </div>
+  <div class="tools">
+    <button class="btn" id="go">Run semantic diff</button>
+    <button class="btn g" id="story">Play the story</button>
+    <button class="btn g" id="demo">Reset to demo</button>
+    <label class="btn g">Screenshot to A<input type="file" id="sa" accept="image/*" hidden></label>
+    <label class="btn g">Screenshot to B<input type="file" id="sb" accept="image/*" hidden></label>
+    <label class="btn g">Load A file<input type="file" id="fa" hidden></label>
+    <label class="btn g">Load B file<input type="file" id="fb" hidden></label>
+    <button class="btn g" id="sum">Gemma 4 summary</button>
+    <select class="btn g" id="gm" aria-label="Gemma 4 model"><option>gemma4:e4b</option></select>
+    <button class="btn g" id="md">Download report (.md)</button>
+    <button class="btn g" id="js">Download report (.json)</button>
+  </div>
+  <p class="mut" id="gs">Checking for local Gemma 4...</p>
+  <div class="ai" id="aisum"></div>
+  <div id="out"></div>
+  <h2>Analyst agent</h2>
+  <p class="mut">Ask a question. Gemma 4 thinks, then calls the engine's tools to test its ideas before answering.</p>
+  <div class="tools"><button class="btn g chip">Could the new copy function still overflow? Test it.</button><button class="btn g chip">Which change is most dangerous? Verify with inputs.</button></div>
+  <div class="tools"><input id="aq" style="flex:1;min-width:220px;padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(0,0,0,.55);color:#fff;font:14px var(--sans)" value="Which change is most dangerous? Verify with inputs." aria-label="Question for the analyst agent"><button class="btn" id="askagent">Ask agent</button></div>
+  <div id="agent"></div>
+  <h2>Where Gemma 4 is used</h2>
+  <ol class="steps"><li><b>Thinking mode</b>Reasons about a change before it answers.</li><li><b>Function calling</b>The agent runs the engine's tools to test its own hypotheses.</li><li><b>Vision</b>Reads assembly from a Ghidra or IDA screenshot.</li><li><b>Local and open</b>Runs through Ollama. e2b and e4b fit a laptop.</li><li><b>Grounded</b>The engine proves changes. Gemma 4 explains and investigates.</li></ol>
+  <h2 id="how">How it works</h2>
+  <ol class="steps">
+    <li><b>1. Parse</b>Reads each function from the assembly.</li>
+    <li><b>2. Execute</b>Runs it on hundreds of edge-case and random inputs.</li>
+    <li><b>3. Observe</b>Records calls, memory writes outside the stack, and the return value.</li>
+    <li><b>4. Match</b>Pairs functions by how similar their behavior is, not by name.</li>
+    <li><b>5. Prove</b>Classifies each change and shows an input that proves it.</li>
+    <li><b>6. Explain</b>Gemma 4, running locally through Ollama, turns those facts into plain English. It never decides what changed.</li>
+  </ol>
+  <p class="mut">Supported instructions: mov, lea, add, sub, imul, shl, shr, and, or, xor, cmp, test, jmp, jcc, cmovcc, call, ret. Arguments arrive in rdi, rsi, rdx.</p>
+  <h2 id="road">Roadmap</h2>
+  <p class="mut">Built: compiling real C with your gcc, 32 and 64-bit x86 registers and flags, inlined-call and memcpy handling, the exploit finder, and the benchmark. Not built yet: reading ELF files directly through Ghidra, AArch64, vector (SSE/AVX) instructions, floating point, formal proofs with the Z3 solver, and learned embeddings. Overlapping memcpy and extreme loop bounds are treated as inconclusive, never as changes.</p>
+</main>
+<script src="samples.js"></script><script src="engine.js"></script><script src="app.js"></script><script src="gemma.js"></script><script src="nav.js"></script><script src="story.js"></script><script src="bg.js"></script>
+</body></html>

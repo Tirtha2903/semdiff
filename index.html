@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SemDiff - Compare Behavior, Not Bytes</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://db.onlinewebfonts.com/c/8cb707a9b8a73f8a7403336b861c3074?family=BubbledotICG-FinePos" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<noscript><style>.rv{opacity:1!important;transform:none!important}</style></noscript>
+</head><body>
+<div class="aur"></div><canvas id="bgc"></canvas>
+<header class="top" id="top">
+  <a class="brand" href="index.html"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#0b1124" stroke-width="2.2" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6M7.5 10h5"/></svg></span>SemDiff</a>
+  <nav class="links" id="links"><a href="index.html" data-p="index">Home</a><a href="app.html" data-p="app">Demo</a><a href="bench.html" data-p="bench">Benchmark</a><a href="index.html#how">How it works</a><a href="index.html#gemma">Gemma 4</a></nav>
+  <a class="go" href="app.html">Open demo</a>
+  <button class="burger" id="burger" aria-label="Menu" aria-expanded="false"><i></i><i></i></button>
+</header>
+<main>
+<section class="hero">
+  <div class="tag rv">Open source &middot; Local-first &middot; Powered by Gemma 4</div>
+  <h1 class="h1 rv"><span>Compare Behavior,</span><span class="g">Not Bytes</span></h1>
+  <p class="lead rv">SemDiff compares two builds of a program and shows only what changed in behavior. Compiler and optimizer noise disappears. Every change comes with an input that proves it.</p>
+  <div class="btns rv"><a class="cta" href="app.html">Run the live demo</a><a class="cta2" href="app.html?story=1">Play the 60-second story</a></div>
+  <div class="live rv" id="lv"></div>
+  <a class="cue" href="#stats" aria-label="Scroll down"><i></i></a>
+</section>
+<section class="sec" id="stats"><div class="stats">
+  <div class="stat rv"><div class="ic">&lt;</div><b data-i="0">0</b><span>Test inputs per function</span></div>
+  <div class="stat rv"><div class="ic">%</div><b data-i="1">0</b><span>Measured analysis time, in your browser</span></div>
+  <div class="stat rv"><div class="ic">*</div><b data-i="2">0</b><span>Functions matched without names</span></div>
+  <div class="stat rv"><div class="ic">#</div><b data-i="3">0</b><span>Servers or uploads, fully local</span></div>
+</div></section>
+<section class="sec" id="why">
+  <h2 class="rv">Same program. Very different bytes.</h2>
+  <p class="sub2 rv">Recompile with different settings and almost every instruction changes. A normal diff panics. SemDiff checks what the code actually does.</p>
+  <div class="vs">
+    <div class="pane rv"><small>A plain text diff says</small><big id="t1">92%</big><p>of this function changed.</p><div class="meter"><i id="m1" style="width:92%"></i></div></div>
+    <div class="pane win rv"><small>SemDiff says</small><big id="s1">0%</big><p id="s2">of its behavior changed.</p><div class="meter"><i id="m2" style="width:2%"></i></div></div>
+  </div>
+</section>
+<section class="sec" id="proof">
+  <h2 class="rv">Measured on real gcc output</h2>
+  <p class="sub2 rv">12 C functions compiled at -O0, -O2 and -O3, plus 24 bugs injected on purpose. These numbers come from one test run (gcc 13.3, x86-64). Run the benchmark yourself to reproduce them.</p>
+  <div class="stats">
+    <div class="stat rv"><div class="ic">%</div><b>24/24</b><span>same-source builds judged same behavior</span></div>
+    <div class="stat rv"><div class="ic">*</div><b>24/24</b><span>injected bugs caught</span></div>
+    <div class="stat rv"><div class="ic">&lt;</div><b>91%</b><span>of lines a plain text diff flags on average</span></div>
+    <div class="stat rv"><div class="ic">#</div><b>0</b><span>false alarms</span></div>
+  </div>
+  <div class="btns rv" style="margin-top:28px"><a class="cta2" href="bench.html">Run the benchmark</a></div>
+</section>
+<section class="sec" id="how">
+  <h2 class="rv">How it works</h2>
+  <div class="grid3">
+    <div class="gc rv"><span>01</span><h3>Parse</h3><p>Reads every function from the assembly. Names are ignored.</p></div>
+    <div class="gc rv"><span>02</span><h3>Execute</h3><p>Runs each function on edge cases and random inputs.</p></div>
+    <div class="gc rv"><span>03</span><h3>Observe</h3><p>Records calls, memory writes outside the stack, and return values.</p></div>
+    <div class="gc rv"><span>04</span><h3>Match</h3><p>Pairs functions across builds by how they behave.</p></div>
+    <div class="gc rv"><span>05</span><h3>Prove</h3><p>Classifies each change. The exploit finder locates the exact input that triggers it.</p></div>
+    <div class="gc rv"><span>06</span><h3>Explain</h3><p>Gemma 4 investigates and explains, grounded in the engine's facts.</p></div>
+  </div>
+</section>
+<section class="sec" id="gemma">
+  <h2 class="rv">An analyst powered by Gemma 4</h2>
+  <p class="sub2 rv">The engine proves what changed. Gemma 4 thinks, calls tools and reads screenshots, running on your own machine.</p>
+  <div class="grid4">
+    <div class="gc rv"><h3>Thinking mode</h3><p>Reasons through a change before it answers.</p></div>
+    <div class="gc rv"><h3>Function calling</h3><p>Calls run_function and compare to test its own theories.</p></div>
+    <div class="gc rv"><h3>Vision</h3><p>Reads assembly straight from a Ghidra or IDA screenshot.</p></div>
+    <div class="gc rv"><h3>Local and open</h3><p>Runs through Ollama. No cloud and no uploads.</p></div>
+  </div>
+  <div class="term rv"><div class="tb"><i></i><i></i><i></i><span>What the agent's tool returns (real engine output)</span></div><pre id="term"></pre></div>
+</section>
+<section class="sec end">
+  <h2 class="rv">See it find the change.</h2>
+  <div class="btns rv"><a class="cta" href="app.html">Open the demo</a></div>
+</section>
+</main>
+<footer class="foot"><span>SemDiff. MIT licensed. Built for Hacktoberfest with Gemma 4.</span><span><a href="app.html">Demo</a> &middot; <a href="app.html#road">Roadmap</a></span></footer>
+<script src="samples.js"></script><script src="engine.js"></script><script src="nav.js"></script><script src="bg.js"></script><script src="main.js"></script>
+</body></html>

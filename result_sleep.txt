@@ -1,0 +1,102 @@
+
+thread 'main' (76359) panicked at library/std/src/sys/thread/unix.rs:537:17:
+assertion `left == right` failed
+  left: 14
+ right: 4
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+######################################################################
+#  PASS: BITFLIP
+######################################################################
+[*] Spawning: /bin/sleep 30
+[*] Hooking boundary syscalls: write, send, open, openat
+[11:18:26.623] hooked    write @ 0x7985adb28c10
+[11:18:26.624] hooked    send @ 0x7985adb39210
+[11:18:26.624] hooked    open @ 0x7985adb27990
+[11:18:26.624] hooked    openat @ 0x7985adb27a90
+
+[*] --- Resuming process with 'bitflip' fault armed ---
+
+[*] Resuming process
+[11:18:26.625] boundary  open(/usr/share/coreutils/locales/uucore/en-US.ftl)
+[11:18:26.625] boundary  open(/usr/share/coreutils/locales/sleep/en-US.ftl)
+[*] Bit-flip target region: writable heap/data @ 0x61db2ad6f008 (window of 64 bytes)
+[11:18:27.927] fault     fault-bitflip  {'kind': 'fault-bitflip', 'address': '0x61db2ad6f047', 'byteOffset': 63, 'bitOffset': 6, 'before': '0x0', 'after': '0x40', 'ts': 1791870507926, '_recv_t': 1791870507.9271114}
+[*] Observing for 4.0s...
+[*] Target process detached (reason: application-requested)
+
+======================================================================
+BLAST RADIUS RESULT — fault type: bitflip
+======================================================================
+  [CRITICAL  ] fault-bitflip        -> caused an immediate process crash
+======================================================================
+[*] Full event log + result written to fault_report_bitflip.json
+
+######################################################################
+#  PASS: REGISTER
+######################################################################
+[*] Spawning: /bin/sleep 30
+[*] Hooking boundary syscalls: write, send, open, openat
+[11:18:34.458] hooked    write @ 0x7f68d5f28c10
+[11:18:34.459] hooked    send @ 0x7f68d5f39210
+[11:18:34.459] hooked    open @ 0x7f68d5f27990
+[11:18:34.459] hooked    openat @ 0x7f68d5f27a90
+[*] Target function 'nanosleep' resolved to 0x7f68d5f036f0
+[*] Arming register corruption: rdi -> 0xDEADBEEF on next call to nanosleep
+[11:18:34.460] fault     fault-register-armed  {'kind': 'fault-register-armed', 'fn': '0x7f68d5f036f0', 'reg': 'rdi', 'ts': 1791870514460, '_recv_t': 1791870514.4608452}
+
+[*] --- Resuming process with 'register' fault armed ---
+
+[*] Resuming process
+[11:18:34.462] boundary  open(/usr/share/coreutils/locales/uucore/en-US.ftl)
+[11:18:34.462] boundary  open(/usr/share/coreutils/locales/sleep/en-US.ftl)
+[11:18:34.463] fault     fault-register  {'kind': 'fault-register', 'fn': '0x7f68d5f036f0', 'reg': 'rdi', 'before': '0x7ffe99be5370', 'after': '0xdeadbeef', 'ts': 1791870514461, '_recv_t': 1791870514.4631896}
+[11:18:34.463] boundary  write(fd=2 len=132)
+[11:18:34.463] boundary  write(fd=2 len=78)
+[*] Observing for 4.0s...
+[*] (detach is taking too long on an already-dead process — skipping, no data lost)
+
+======================================================================
+BLAST RADIUS RESULT — fault type: register
+======================================================================
+  [HIGH      ] fault-register       -> process kept running and still crossed the write/send/open boundary afterward
+======================================================================
+[*] Full event log + result written to fault_report_register.json
+
+######################################################################
+#  PASS: RETADDR
+######################################################################
+[*] Spawning: /bin/sleep 30
+[*] Hooking boundary syscalls: write, send, open, openat
+[11:18:42.792] hooked    write @ 0x7fbea6f28c10
+[11:18:42.794] hooked    send @ 0x7fbea6f39210
+[11:18:42.797] hooked    open @ 0x7fbea6f27990
+[11:18:42.800] hooked    openat @ 0x7fbea6f27a90
+[*] Target function 'nanosleep' resolved to 0x7fbea6f036f0
+[*] Arming return-address corruption on next call to nanosleep
+[11:18:42.810] fault     fault-retaddr-armed  {'kind': 'fault-retaddr-armed', 'fn': '0x7fbea6f036f0', 'ts': 1791870522810, '_recv_t': 1791870522.8108528}
+
+[*] --- Resuming process with 'retaddr' fault armed ---
+
+[*] Resuming process
+[11:18:42.815] boundary  open(/usr/share/coreutils/locales/uucore/en-US.ftl)
+[11:18:42.815] boundary  open(/usr/share/coreutils/locales/sleep/en-US.ftl)
+[11:18:42.815] fault     fault-retaddr  {'kind': 'fault-retaddr', 'fn': '0x7fbea6f036f0', 'slot': '0x7ffff101eb18', 'before': '0x5f048299f7c0', 'after': '0xdeadbeef', 'ts': 1791870522815, '_recv_t': 1791870522.8155422}
+[*] Observing for 4.0s...
+[*] (detach is taking too long on an already-dead process — skipping, no data lost)
+
+======================================================================
+BLAST RADIUS RESULT — fault type: retaddr
+======================================================================
+  [LOW       ] fault-retaddr        -> no observable crash or boundary activity in the 2s window after injection
+======================================================================
+[*] Full event log + result written to fault_report_retaddr.json
+
+======================================================================
+FINAL COMPARATIVE BLAST RADIUS RANKING (most to least dangerous)
+======================================================================
+  [CRITICAL  ] bitflip    -> caused an immediate process crash
+  [HIGH      ] register   -> process kept running and still crossed the write/send/open boundary afterward
+  [LOW       ] retaddr    -> no observable crash or boundary activity in the 2s window after injection
+======================================================================
+[*] Comparative ranking written to fault_report.json

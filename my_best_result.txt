@@ -1,0 +1,34 @@
+
+thread 'main' (73011) panicked at library/std/src/sys/thread/unix.rs:537:17:
+assertion `left == right` failed
+  left: 14
+ right: 4
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[*] Spawning: /bin/sleep 30
+[*] Hooking boundary syscalls: write, send, open, openat
+[11:12:06.511] hooked    write @ 0x732a25128c10
+[11:12:06.511] hooked    send @ 0x732a25139210
+[11:12:06.511] hooked    open @ 0x732a25127990
+[11:12:06.511] hooked    openat @ 0x732a25127a90
+[*] Target function 'nanosleep' resolved to 0x732a251036f0
+[*] Arming register corruption: rdi -> 0xDEADBEEF on next call to nanosleep
+[11:12:06.513] fault     fault-register-armed  {'kind': 'fault-register-armed', 'fn': '0x732a251036f0', 'reg': 'rdi', 'ts': 1791870126513, '_recv_t': 1791870126.5136685}
+
+[*] --- Resuming process with faults armed ---
+
+[*] Resuming process
+[11:12:06.514] boundary  open(/usr/share/coreutils/locales/uucore/en-US.ftl)
+[11:12:06.515] boundary  open(/usr/share/coreutils/locales/sleep/en-US.ftl)
+[11:12:06.515] fault     fault-register  {'kind': 'fault-register', 'fn': '0x732a251036f0', 'reg': 'rdi', 'before': '0x7ffda9535940', 'after': '0xdeadbeef', 'ts': 1791870126515, '_recv_t': 1791870126.5153384}
+[11:12:06.515] boundary  write(fd=2 len=132)
+[11:12:06.516] boundary  write(fd=2 len=78)
+[!] Skipped bit-flip: target process is no longer running (it likely already crashed from a previous fault — this is itself evidence of that earlier fault's blast radius).
+[*] Observing for 4.0s...
+[*] (detach is taking too long on an already-dead process — skipping, no data lost)
+
+======================================================================
+BLAST RADIUS RANKING
+======================================================================
+  [CRITICAL  ] fault-register       -> caused an immediate process crash
+======================================================================
+[*] Full event log + ranking written to fault_report.json

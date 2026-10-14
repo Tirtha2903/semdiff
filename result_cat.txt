@@ -1,0 +1,99 @@
+diptanil-sen-Vivobook-ASUSLaptop-X1504ZA-X1504ZA
+diptanil-sen-Vivobook-ASUSLaptop-X1504ZA-X1504ZA
+diptanil-sen-Vivobook-ASUSLaptop-X1504ZA-X1504ZA
+
+######################################################################
+#  PASS: BITFLIP
+######################################################################
+[*] Spawning: /bin/cat /etc/hostname
+[*] Hooking boundary syscalls: write, send, open, openat
+[11:24:23.907] hooked    write @ 0x74dfbff28c10
+[11:24:23.908] hooked    send @ 0x74dfbff39210
+[11:24:23.908] hooked    open @ 0x74dfbff27990
+[11:24:23.908] hooked    openat @ 0x74dfbff27a90
+
+[*] --- Resuming process with 'bitflip' fault armed ---
+
+[*] Resuming process
+[11:24:23.909] boundary  open(/usr/share/coreutils/locales/uucore/en-US.ftl)
+[11:24:23.909] boundary  open(/usr/share/coreutils/locales/cat/en-US.ftl)
+[11:24:23.910] boundary  open(/etc/hostname)
+[*] Target process detached (reason: process-terminated)
+[!] Skipped bit-flip: target process is no longer running.
+[*] Observing for 4.0s...
+
+======================================================================
+BLAST RADIUS RESULT — fault type: bitflip
+======================================================================
+  [LOW       ] no-effect-observed    -> fault ran but caused no observable crash or boundary activity
+======================================================================
+[*] Full event log + result written to fault_report_bitflip.json
+
+######################################################################
+#  PASS: REGISTER
+######################################################################
+[*] Spawning: /bin/cat /etc/hostname
+[*] Hooking boundary syscalls: write, send, open, openat
+[11:24:31.745] hooked    write @ 0x75e49ef28c10
+[11:24:31.747] hooked    send @ 0x75e49ef39210
+[11:24:31.750] hooked    open @ 0x75e49ef27990
+[11:24:31.753] hooked    openat @ 0x75e49ef27a90
+[*] Target function 'read' resolved to 0x75e49ef28150
+[*] Arming register corruption: rdi -> 0xDEADBEEF on next call to read
+[11:24:31.760] fault     fault-register-armed  {'kind': 'fault-register-armed', 'fn': '0x75e49ef28150', 'reg': 'rdi', 'ts': 1791870871760, '_recv_t': 1791870871.760804}
+
+[*] --- Resuming process with 'register' fault armed ---
+
+[*] Resuming process
+[11:24:31.765] boundary  open(/usr/share/coreutils/locales/uucore/en-US.ftl)
+[11:24:31.765] fault     fault-register  {'kind': 'fault-register', 'fn': '0x75e49ef28150', 'reg': 'rdi', 'before': '0x7', 'after': '0xdeadbeef', 'ts': 1791870871764, '_recv_t': 1791870871.7657895}
+[11:24:31.765] boundary  open(/usr/share/coreutils/locales/cat/en-US.ftl)
+[11:24:31.765] boundary  open(/etc/hostname)
+[*] Target process detached (reason: process-terminated)
+[*] Observing for 4.0s...
+
+======================================================================
+BLAST RADIUS RESULT — fault type: register
+======================================================================
+  [CRITICAL  ] fault-register       -> caused an immediate process crash
+======================================================================
+[*] Full event log + result written to fault_report_register.json
+
+######################################################################
+#  PASS: RETADDR
+######################################################################
+[*] Spawning: /bin/cat /etc/hostname
+[*] Hooking boundary syscalls: write, send, open, openat
+[11:24:38.098] hooked    write @ 0x73cc55b28c10
+[11:24:38.102] hooked    send @ 0x73cc55b39210
+[11:24:38.105] hooked    open @ 0x73cc55b27990
+[11:24:38.108] hooked    openat @ 0x73cc55b27a90
+[*] Target function 'read' resolved to 0x73cc55b28150
+[*] Arming return-address corruption on next call to read
+[11:24:38.117] fault     fault-retaddr-armed  {'kind': 'fault-retaddr-armed', 'fn': '0x73cc55b28150', 'ts': 1791870878117, '_recv_t': 1791870878.1178043}
+
+[*] --- Resuming process with 'retaddr' fault armed ---
+
+[*] Resuming process
+[11:24:38.122] boundary  open(/usr/share/coreutils/locales/uucore/en-US.ftl)
+[11:24:38.122] fault     fault-retaddr  {'kind': 'fault-retaddr', 'fn': '0x73cc55b28150', 'slot': '0x7ffe749eaea8', 'before': '0x6172f443da04', 'after': '0xdeadbeef', 'ts': 1791870878121, '_recv_t': 1791870878.1229806}
+[11:24:38.123] boundary  open(/usr/share/coreutils/locales/cat/en-US.ftl)
+[11:24:38.123] boundary  open(/etc/hostname)
+[*] Target process detached (reason: process-terminated)
+[*] Observing for 4.0s...
+
+======================================================================
+BLAST RADIUS RESULT — fault type: retaddr
+======================================================================
+  [CRITICAL  ] fault-retaddr        -> caused an immediate process crash
+======================================================================
+[*] Full event log + result written to fault_report_retaddr.json
+
+======================================================================
+FINAL COMPARATIVE BLAST RADIUS RANKING (most to least dangerous)
+======================================================================
+  [CRITICAL  ] register   -> caused an immediate process crash
+  [CRITICAL  ] retaddr    -> caused an immediate process crash
+  [LOW       ] bitflip    -> fault ran but caused no observable effect
+======================================================================
+[*] Comparative ranking written to fault_report.json

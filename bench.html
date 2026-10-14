@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SemDiff - Benchmark</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://db.onlinewebfonts.com/c/8cb707a9b8a73f8a7403336b861c3074?family=BubbledotICG-FinePos" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head><body>
+<div class="aur"></div><canvas id="bgc"></canvas>
+<header class="top" id="top">
+  <a class="brand" href="index.html"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#0b1124" stroke-width="2.2" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6M7.5 10h5"/></svg></span>SemDiff</a>
+  <nav class="links" id="links"><a href="index.html" data-p="index">Home</a><a href="app.html" data-p="app">Demo</a><a href="bench.html" data-p="bench">Benchmark</a><a href="index.html#how">How it works</a><a href="index.html#gemma">Gemma 4</a></nav>
+  <a class="go" href="app.html">Open demo</a>
+  <button class="burger" id="burger" aria-label="Menu" aria-expanded="false"><i></i><i></i></button>
+</header>
+<main class="wrap">
+  <h1>Benchmark</h1>
+  <p class="mut">Compiles 12 real C functions with your own gcc. Each function is compared with itself at different optimization levels (SemDiff should say "same"), and with two deliberately injected bugs (SemDiff should say "changed"). Needs <code>python3 server.py</code>.</p>
+  <div class="tools"><button class="btn" id="go">Run benchmark</button><button class="btn g" id="dl" hidden>Download results (.json)</button><span class="mut" id="prog"></span></div>
+  <div class="sum" id="sumb"></div>
+  <div class="tw"><table class="bt-table"><thead><tr><th>Function</th><th>-O0 vs -O2</th><th>-O0 vs -O3</th><th>Injected bug 1</th><th>Injected bug 2</th></tr></thead><tbody id="tb"></tbody></table></div>
+  <p class="mut">How to read it: "same" on the first two columns and "caught" on the last two are correct. "False alarm" means SemDiff reported a change between builds of identical source. "Skipped" means the engine met an instruction it does not support and said so instead of guessing. The corpus is small and written by us, so treat it as a regression suite, not a research claim. Tested on x86-64 with gcc 13.3; vector instructions are disabled in the compile flags.</p>
+</main>
+<script src="engine.js"></script><script src="nav.js"></script><script src="bg.js"></script><script src="bench.js"></script>
+</body></html>

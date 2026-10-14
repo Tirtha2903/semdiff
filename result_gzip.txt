@@ -1,0 +1,99 @@
+gzip: testfile.txt: No such file or directory
+gzip: testfile.txt: No such file or directory
+
+######################################################################
+#  PASS: BITFLIP
+######################################################################
+[*] Spawning: /bin/gzip testfile.txt
+[*] Hooking boundary syscalls: write, send, open, openat
+[11:28:34.647] hooked    write @ 0x7ac883328c10
+[11:28:34.647] hooked    send @ 0x7ac883339210
+[11:28:34.647] hooked    open @ 0x7ac883327990
+[11:28:34.647] hooked    openat @ 0x7ac883327a90
+
+[*] --- Resuming process with 'bitflip' fault armed ---
+
+[*] Resuming process
+[11:28:34.649] boundary  open(.)
+[11:28:34.649] boundary  openat(testfile.txt)
+[11:28:34.649] boundary  openat(testfile.txt.gz)
+[11:28:34.650] boundary  write(fd=9 len=52)
+[*] Target process detached (reason: process-terminated)
+[!] Skipped bit-flip: target process is no longer running.
+[*] Observing for 4.0s...
+
+======================================================================
+BLAST RADIUS RESULT — fault type: bitflip
+======================================================================
+  [LOW       ] no-effect-observed    -> fault ran but caused no observable crash or boundary activity
+======================================================================
+[*] Full event log + result written to fault_report_bitflip.json
+
+######################################################################
+#  PASS: REGISTER
+######################################################################
+[*] Spawning: /bin/gzip testfile.txt
+[*] Hooking boundary syscalls: write, send, open, openat
+[11:28:42.480] hooked    write @ 0x7de0d4b28c10
+[11:28:42.480] hooked    send @ 0x7de0d4b39210
+[11:28:42.481] hooked    open @ 0x7de0d4b27990
+[11:28:42.481] hooked    openat @ 0x7de0d4b27a90
+[*] Target function 'malloc' resolved to 0x7de0d4ab4e10
+[*] Arming register corruption: rdi -> 0xDEADBEEF on next call to malloc
+[11:28:42.482] fault     fault-register-armed  {'kind': 'fault-register-armed', 'fn': '0x7de0d4ab4e10', 'reg': 'rdi', 'ts': 1791871122482, '_recv_t': 1791871122.482906}
+
+[*] --- Resuming process with 'register' fault armed ---
+
+[*] Resuming process
+[11:28:42.483] boundary  open(.)
+[11:28:42.484] boundary  openat(testfile.txt)
+[11:28:42.484] fault     fault-register  {'kind': 'fault-register', 'fn': '0x7de0d4ab4e10', 'reg': 'rdi', 'before': '0x14', 'after': '0xdeadbeef', 'ts': 1791871122483, '_recv_t': 1791871122.484127}
+[11:28:42.487] boundary  write(fd=2 len=46)
+[*] Target process detached (reason: process-terminated)
+[*] Observing for 4.0s...
+
+======================================================================
+BLAST RADIUS RESULT — fault type: register
+======================================================================
+  [CRITICAL  ] fault-register       -> caused an immediate process crash
+======================================================================
+[*] Full event log + result written to fault_report_register.json
+
+######################################################################
+#  PASS: RETADDR
+######################################################################
+[*] Spawning: /bin/gzip testfile.txt
+[*] Hooking boundary syscalls: write, send, open, openat
+[11:28:48.816] hooked    write @ 0x747222b28c10
+[11:28:48.819] hooked    send @ 0x747222b39210
+[11:28:48.822] hooked    open @ 0x747222b27990
+[11:28:48.825] hooked    openat @ 0x747222b27a90
+[*] Target function 'malloc' resolved to 0x747222ab4e10
+[*] Arming return-address corruption on next call to malloc
+[11:28:48.834] fault     fault-retaddr-armed  {'kind': 'fault-retaddr-armed', 'fn': '0x747222ab4e10', 'ts': 1791871128834, '_recv_t': 1791871128.8348308}
+
+[*] --- Resuming process with 'retaddr' fault armed ---
+
+[*] Resuming process
+[11:28:48.838] boundary  open(.)
+[11:28:48.838] boundary  openat(testfile.txt)
+[11:28:48.839] fault     fault-retaddr-notfound  {'kind': 'fault-retaddr-notfound', 'fn': '0x747222ab4e10', 'sp': '0x7ffece768268', 'ts': 1791871128838, '_recv_t': 1791871128.8391142}
+[11:28:48.839] boundary  write(fd=2 len=46)
+[*] Target process detached (reason: process-terminated)
+[*] Observing for 4.0s...
+
+======================================================================
+BLAST RADIUS RESULT — fault type: retaddr
+======================================================================
+  [CRITICAL  ] fault-retaddr-notfound -> caused an immediate process crash
+======================================================================
+[*] Full event log + result written to fault_report_retaddr.json
+
+======================================================================
+FINAL COMPARATIVE BLAST RADIUS RANKING (most to least dangerous)
+======================================================================
+  [CRITICAL  ] register   -> caused an immediate process crash
+  [CRITICAL  ] retaddr    -> caused an immediate process crash
+  [LOW       ] bitflip    -> fault ran but caused no observable effect
+======================================================================
+[*] Comparative ranking written to fault_report.json

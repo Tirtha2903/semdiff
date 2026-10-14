@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Fault-Injection Cascade Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg0: #06070c; --bg1: #0c0e18; --panel: rgba(255,255,255,0.03);
+    --border: rgba(255,255,255,0.08); --border-hi: rgba(130,160,255,0.35);
+    --text: #eef0f8; --muted: #8389a3; --muted2: #5b6080;
+    --critical: #ff4d5e; --high: #ffa93d; --low: #37e2a0;
+    --accent: #7c8dff; --accent2: #c86bff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    background:
+      radial-gradient(900px 500px at 10% -10%, rgba(124,141,255,0.18), transparent 60%),
+      radial-gradient(900px 600px at 110% 10%, rgba(200,107,255,0.14), transparent 60%),
+      linear-gradient(180deg, var(--bg0), var(--bg1));
+    background-attachment: fixed;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 48px 28px 80px; }
+
+  header { margin-bottom: 36px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px;
+    color: var(--accent); text-transform: uppercase;
+    padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border-hi);
+    background: rgba(124,141,255,0.08); margin-bottom: 16px;
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--low); box-shadow: 0 0 8px var(--low); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  h1 {
+    font-size: 34px; font-weight: 700; margin: 0 0 10px; line-height: 1.15;
+    background: linear-gradient(90deg, #fff, #c9ceff);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  p.sub { color: var(--muted); margin: 0; font-size: 15px; max-width: 560px; line-height: 1.5; }
+
+  .glass {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 18px; backdrop-filter: blur(20px);
+    box-shadow: 0 20px 60px -20px rgba(0,0,0,0.6);
+  }
+  .panel { padding: 26px; margin-bottom: 22px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 18px; }
+  .field label {
+    display: block; font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted2); margin-bottom: 7px;
+  }
+  .field input {
+    width: 100%; padding: 11px 13px; border-radius: 10px;
+    border: 1px solid var(--border); background: rgba(0,0,0,0.3); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 13.5px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .field input:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124,141,255,0.15);
+  }
+  .field input::placeholder { color: var(--muted2); }
+
+  button.run {
+    position: relative; overflow: hidden;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white; border: none; padding: 13px 28px; border-radius: 10px;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 14.5px;
+    cursor: pointer; letter-spacing: 0.2px;
+    box-shadow: 0 8px 24px -8px rgba(124,141,255,0.6);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  button.run:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 28px -6px rgba(124,141,255,0.75); }
+  button.run:active:not(:disabled) { transform: translateY(0); }
+  button.run:disabled { opacity: 0.55; cursor: not-allowed; }
+  button.run .spin {
+    display: inline-block; width: 13px; height: 13px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4); border-top-color: white;
+    animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: -2px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status-line { margin-top: 14px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--muted); }
+  .status-line.error { color: var(--critical); }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 11px; border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
+  }
+  .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+  .badge.CRITICAL { background: rgba(255,77,94,0.12); color: var(--critical); border: 1px solid rgba(255,77,94,0.4); }
+  .badge.CRITICAL::before { background: var(--critical); box-shadow: 0 0 6px var(--critical); }
+  .badge.HIGH { background: rgba(255,169,61,0.12); color: var(--high); border: 1px solid rgba(255,169,61,0.4); }
+  .badge.HIGH::before { background: var(--high); box-shadow: 0 0 6px var(--high); }
+  .badge.LOW { background: rgba(55,226,160,0.12); color: var(--low); border: 1px solid rgba(55,226,160,0.4); }
+  .badge.LOW::before { background: var(--low); box-shadow: 0 0 6px var(--low); }
+  .badge.ERROR, .badge.UNKNOWN { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
+  .badge.ERROR::before, .badge.UNKNOWN::before { background: var(--muted); }
+
+  .result-title { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; flex-wrap: wrap; gap: 8px; }
+  .result-title h3 { margin: 0; font-size: 18px; font-weight: 600; }
+  .result-title .dur { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); }
+
+  .result-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-bottom: 22px; }
+  .result-card {
+    padding: 16px; border-radius: 12px; background: rgba(255,255,255,0.025);
+    border: 1px solid var(--border); animation: rise 0.4s ease backwards;
+  }
+  .result-card:nth-child(1) { animation-delay: 0.05s; }
+  .result-card:nth-child(2) { animation-delay: 0.15s; }
+  .result-card:nth-child(3) { animation-delay: 0.25s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .result-card .ftype { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .result-card .reason { margin-top: 10px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+
+  .chart-box { height: 220px; position: relative; margin-top: 4px; }
+
+  h2.section-title {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px;
+    color: var(--muted2); font-family: 'JetBrains Mono', monospace; font-weight: 600;
+    margin: 36px 0 14px;
+  }
+
+  .history-item {
+    padding: 16px 18px; margin-bottom: 10px; cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+  }
+  .history-item:hover { border-color: var(--border-hi); transform: translateX(3px); }
+  .history-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 12px; flex-wrap: wrap; }
+  .history-head strong { font-size: 14.5px; }
+  .history-head .meta { color: var(--muted2); font-size: 11.5px; font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .empty { color: var(--muted2); font-size: 13.5px; padding: 8px 2px; }
+
+  .safety-note {
+    margin-top: 28px; padding: 14px 18px; border-radius: 12px;
+    background: rgba(255,169,61,0.06); border: 1px solid rgba(255,169,61,0.25);
+    font-size: 12.5px; color: var(--muted); line-height: 1.6;
+  }
+  .safety-note b { color: var(--high); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow"><span class="dot"></span> Frida-powered · local only</div>
+    <h1>Binary-Level Fault-Injection<br>Cascade Analyzer</h1>
+    <p class="sub">Spawns a binary, injects a bit-flip, a register corruption, or a return-address smash — then watches whether the damage crashes the process or leaks across the syscall boundary, and ranks the blast radius.</p>
+  </header>
+
+  <div class="glass panel">
+    <div class="grid">
+      <div class="field">
+        <label>Target binary path</label>
+        <input id="target" placeholder="/bin/sleep">
+      </div>
+      <div class="field">
+        <label>Arguments</label>
+        <input id="args" placeholder="30">
+      </div>
+      <div class="field">
+        <label>Function to hook</label>
+        <input id="function" placeholder="nanosleep">
+      </div>
+      <div class="field">
+        <label>Register to corrupt</label>
+        <input id="register" placeholder="rdi">
+      </div>
+      <div class="field">
+        <label>Label (optional)</label>
+        <input id="label" placeholder="sleep test">
+      </div>
+    </div>
+    <button class="run" id="runBtn" onclick="runTest()">Run fault sweep</button>
+    <div id="status" class="status-line"></div>
+  </div>
+
+  <div class="glass panel" id="currentResultPanel" style="display:none;">
+    <div class="result-title">
+      <h3 id="currentResultTitle"></h3>
+      <span class="dur" id="currentResultDur"></span>
+    </div>
+    <div class="result-cards" id="currentResultCards"></div>
+    <div class="chart-box"><canvas id="resultChart"></canvas></div>
+  </div>
+
+  <h2 class="section-title">Run history</h2>
+  <div id="historyList"></div>
+
+  <div class="safety-note">
+    <b>Scope note —</b> this tool only spawns and attaches to processes it starts itself. It never attaches to an unrelated running process on this machine, and nothing here is reachable from outside localhost.
+  </div>
+
+</div>
+
+<script>
+let chart = null;
+const sevVal = { CRITICAL: 3, HIGH: 2, LOW: 1, ERROR: 0, UNKNOWN: 0 };
+const sevColor = { CRITICAL: '#ff4d5e', HIGH: '#ffa93d', LOW: '#37e2a0', ERROR: '#5b6080', UNKNOWN: '#5b6080' };
+
+async function runTest() {
+  const btn = document.getElementById('runBtn');
+  const status = document.getElementById('status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>Running — spawning binary, injecting faults...';
+  status.className = 'status-line';
+  status.textContent = '';
+
+  const payload = {
+    target: document.getElementById('target').value,
+    args: document.getElementById('args').value,
+    function: document.getElementById('function').value,
+    register: document.getElementById('register').value,
+    label: document.getElementById('label').value,
+  };
+
+  try {
+    const res = await fetch('/api/run', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    btn.textContent = 'Run fault sweep';
+    if (data.error) {
+      status.className = 'status-line error';
+      status.textContent = '⚠ ' + data.error;
+      return;
+    }
+    showResult(data);
+    loadHistory();
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Run fault sweep';
+    status.className = 'status-line error';
+    status.textContent = '⚠ Request failed: ' + e.message;
+  }
+}
+
+function showResult(run) {
+  document.getElementById('currentResultPanel').style.display = 'block';
+  document.getElementById('currentResultTitle').textContent = run.label || run.target;
+  document.getElementById('currentResultDur').textContent = run.duration + 's total';
+
+  const cards = document.getElementById('currentResultCards');
+  cards.innerHTML = '';
+  run.results.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'result-card';
+    div.innerHTML = `
+      <div class="ftype">${r.fault_type}</div>
+      <span class="badge ${r.severity}">${r.severity}</span>
+      <div class="reason">${r.reason}</div>
+    `;
+    cards.appendChild(div);
+  });
+
+  drawChart(run.results);
+  document.getElementById('currentResultPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function drawChart(results) {
+  const ctx = document.getElementById('resultChart');
+  const labels = results.map(r => r.fault_type);
+  const values = results.map(r => sevVal[r.severity] ?? 0);
+  const colors = results.map(r => sevColor[r.severity] ?? '#5b6080');
+
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 8, maxBarThickness: 60 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        y: { min: 0, max: 3.5, ticks: { stepSize: 1, color: '#8389a3',
+              callback: v => ({0:'',1:'Low',2:'High',3:'Critical'}[v] || '') },
+             grid: { color: 'rgba(255,255,255,0.06)' } },
+        x: { ticks: { color: '#eef0f8', font: { family: 'JetBrains Mono', size: 11 } }, grid: { display: false } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+async function loadHistory() {
+  const res = await fetch('/api/history');
+  const items = await res.json();
+  const list = document.getElementById('historyList');
+  list.innerHTML = '';
+  if (items.length === 0) {
+    list.innerHTML = '<div class="glass panel empty">No runs yet — try one above.</div>';
+    return;
+  }
+  items.forEach(run => {
+    const div = document.createElement('div');
+    div.className = 'glass history-item';
+    const pills = run.results.map(r => `<span class="badge ${r.severity}">${r.fault_type}</span>`).join('');
+    div.innerHTML = `
+      <div class="history-head">
+        <strong>${run.label || run.target}</strong>
+        <span class="meta">${run.timestamp} · ${run.duration}s</span>
+      </div>
+      <div class="pills">${pills}</div>
+    `;
+    div.onclick = () => showResult(run);
+    list.appendChild(div);
+  });
+}
+
+loadHistory();
+</script>
+</body>
+</html>
