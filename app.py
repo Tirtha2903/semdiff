@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 
@@ -160,8 +161,9 @@ def api_run():
         return jsonify({"error": "Target binary path is required."}), 400
 
     run_id = str(uuid.uuid4())[:8]
-    output_base = f"/tmp/fault_report_{run_id}"
-    log_path = f"/tmp/fault_dashboard_log_{run_id}.txt"
+    temp_dir = tempfile.gettempdir()
+    output_base = os.path.join(temp_dir, f"fault_report_{run_id}")
+    log_path = os.path.join(temp_dir, f"fault_dashboard_log_{run_id}.txt")
 
     cmd = [
         sys.executable, "fault_injector.py",
